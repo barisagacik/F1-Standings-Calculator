@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 2025 Puan Hesaplayıcı (v17 - Pole Kuralı Kesin Düzeltme)</title>
+
+    <style>
+        :root {
+            /* F1 2025 Takım Renkleri */
+            --color-rb: #3671C6; --color-mclaren: #FF8000; --color-ferrari: #E80020;
+            --color-mercedes: #27F5D2; --color-williams: #64C4FF; --color-aston: #229971;
+            --color-sauber: #52E252; --color-rbulls: #6692FF; --color-haas: #B6B6B9;
+            --color-alpine: #FF87BC; --bg-closed: #f7f7f7; --bg-open: #ffffff;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; padding: 20px; color: #15151e; }
+        h1, h3, h4 { margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        h1 { text-align: center; } h3 { font-size: 16px; } h4 { font-size: 15px; margin-bottom: 10px; }
+        .main-container { display: flex; gap: 20px; align-items: flex-start; }
+        
+        /* 3 Sütunlu Düzen için CSS */
+        .sidebar-left, .sidebar-right {
+            position: sticky;
+            top: 20px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .sidebar-left { width: 250px; }
+        .sidebar-right { width: 350px; }
+        .races-container { flex-grow: 1; } /* Orta sütun esnek olacak */
+
+        #driver-bank, .tab-content { border: 1px solid #d0d0d0; background-color: #fff; padding: 15px; border-radius: 8px; }
+        .driver { padding: 8px; background-color: #f9f9f9; border: 1px solid #ddd; cursor: grab; font-weight: bold; margin-bottom: 5px; border-radius: 4px; border-left: 5px solid #ccc; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+        .driver:active { cursor: grabbing; }
+        .driver-actions { display: flex; align-items: center; gap: 5px; }
+        .change-team-btn { padding: 2px 5px; font-size: 10px; cursor: pointer; background: #eee; border: 1px solid #ccc; border-radius: 3px; color: #333; }
+        .change-team-btn:hover { background: #ddd; }
+        #results-list-driver, #results-list-constructor, #past-seasons-content { list-style-type: none; padding-left: 0; margin: 0; font-size: 13px; }
+        #results-list-driver li { padding: 5px 2px; border-bottom: 1px solid #f0f0f0; display: grid; grid-template-columns: 70px 50px 30px 30px 1fr; align-items: center; }
+        #results-list-constructor li { padding: 5px 2px; border-bottom: 1px solid #f0f0f0; display: grid; grid-template-columns: 150px 70px 1fr; align-items: center; }
+        .team-color-swatch { width: 10px; height: 10px; border-radius: 2px; margin-right: 8px; display: inline-block; flex-shrink: 0; }
+        .team-result-name { display: flex; align-items: center; font-weight: bold; }
+        .tabs { display: flex; border-bottom: 1px solid #ddd; margin-bottom: 15px; }
+        .tab-button { flex: 1; padding: 10px 5px; background-color: #f0f0f0; border: 1px solid #ddd; border-bottom: none; cursor: pointer; font-weight: bold; text-align: center; border-top-left-radius: 5px; border-top-right-radius: 5px; margin-right: 2px; white-space: nowrap; }
+        .tab-button.active { background-color: #fff; border-color: #ddd; border-bottom: 1px solid #fff; color: #e10600; }
+        .tab-pane { display: none; } .tab-pane.active { display: block; }
+        button { padding: 10px; font-size: 16px; font-weight: bold; color: white; border: none; cursor: pointer; margin-top: 5px; border-radius: 5px; }
+        #calculate-btn { background-color: #e10600; width: 100%; margin-bottom: 5px;}
+        #reset-btn { background-color: #555; width: 100%; }
+        #end-season-btn { background-color: #229971; margin-top: 15px;}
+        .races-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+        .race-grid { border: 1px solid #ccc; background-color: var(--bg-closed); padding: 0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; }
+        .race-grid h3.toggle-header { padding: 10px 15px; border-bottom: none; cursor: pointer; background-color: var(--bg-closed); margin-bottom: 0; display: flex; justify-content: space-between; align-items: center; user-select: none; transition: background-color 0.2s; }
+        .race-grid h3.toggle-header::after { content: '►'; font-size: 10px; transition: transform 0.2s; }
+        .race-grid.open { background-color: var(--bg-open); }
+        .race-grid.open h3.toggle-header { background-color: var(--bg-open); border-bottom: 1px solid #eee; }
+        .race-grid.open h3.toggle-header::after { content: '▼'; }
+        .race-grid-content { padding: 0 8px 8px 8px; display: none; }
+        .race-grid.open .race-grid-content { display: block; }
+        .drop-zone { padding: 4px; height: 25px; border: 1px solid #aaa; margin-bottom: 3px; background-color: #f9f9f9; display: flex; align-items: center; justify-content: space-between; color: #888; font-size: 12px; border-radius: 3px; }
+        .drop-zone.drag-over { background-color: #d3eaff; border-color: #1e90ff; }
+        .pole-zone { margin-top: 5px; border: 2px dashed #e10600; background-color: #fff0f0; font-weight: bold; }
+        .drop-zone .position-label { width: 45px; font-weight: bold; color: #555; flex-shrink: 0; font-size: 11px; }
+        .drop-zone .driver-name { flex-grow: 1; text-align: center; font-weight: bold; font-size: 13px; }
+        .delete-btn { display: none; width: 16px; height: 16px; line-height: 16px; font-size: 12px; color: #e10600; background-color: #f0f0f0; border-radius: 50%; cursor: pointer; flex-shrink: 0; margin-left: 5px; }
+        .drop-zone.filled .delete-btn { display: block; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        table th, table td { border: 1px solid #eee; padding: 6px; text-align: left; }
+    </style>
+</head>
+<body>
+
+    <h1 id="current-season-title">F1 2025 Şampiyona Tahmin Aracı</h1>
+
+    <div class="main-container">
+
+        <div class="sidebar-left">
+            <div id="driver-bank">
+                <h3>Sürücü Listesi (Sürükle-Bırak)</h3>
+                <div class="driver" draggable="true" data-driver="VER"><span class="driver-code">VER</span> <span class="team-name">Red Bull</span><span class="driver-actions"><button class="change-team-btn" data-driver-code="VER">🔄</button></span></div>
+                <div class="driver" draggable="true" data-driver="TSU"><span class="driver-code">TSU</span> <span class="team-name">Red Bull</span><span class="driver-actions"><button class="change-team-btn" data-driver-code="TSU">🔄</button></span></div>
+                <div class="driver" draggable="true" data-driver="NOR"><span class="driver-code">NOR</span> <span class="team-name">McLaren</span><span class="driver-actions"><button class="change-team-btn" data-driver-code="NOR">🔄</button></span></div>
+                <div class="driver" draggable="true" data-driver="PIA"><span class="driver-code">PIA</span> <span class="team-name">McLaren</span><span class="driver-actions"><button class="change-team-btn" data-driver-code="PIA">🔄</button></span></div>
+                <div class="driver" draggable="true" data-driver="LEC"><span class="driver-code">LEC</span> <span class="team-name">Ferrari</span><span class="driver-actions"><button class="change-team-btn" data-driver-code="LEC">🔄</button></span></div>
+                <div class="driver" draggable="true" data-driver="HAM"><span class="driver-code">HAM</span> <span class="team-name">Ferrari</span><span class="driver-actions"><button class="change-team-btn" data-driver-code="HAM">🔄</button></span></div>
+                <div class="driver" draggable="true" data-driver="RUS"><span class="driver-code">RUS</span> <span class="team-name">Mercedes</span><span class="driver-actions"><button class="change-team-btn" data-driver-code="RUS">🔄</button></span></div>
+                <div class="driver" draggable="true" data-driver="ANT"><span class="driver-code">ANT</span> <span class="team-name">Mercedes</span><span class="driver-actions"><button class="change-team-btn" data-driver-code="ANT">🔄</button></span></div>
+                <div class="driver" draggable="true" data-driver="SAI"><span class="driver-code">SAI</span> <span class="team-name">Williams</span><span class="driver-actions"><button class="change-team-btn" data-driver-code="SAI">🔄</button></span></div>
+                <div class="driver" draggable="true" data-driver="ALB"><span class="driver-code">ALB</span> <span class="team-name">Williams</span><span class="driver-actions"><button class="change-team-btn" data-driver-code="ALB">🔄</button></span></div>
+                <div class="driver" draggable="true" data-driver="ALO"><span class="driver-code">ALO</span> <span class="team-name">Aston Martin</span><span class="driver-actions"><button class="change-team-btn" data-driver-code="ALO">🔄</button></span></div>
+                <div class="driver" draggable="true" data-driver="STR"><span class="driver-code">STR</span> <span class="team-name">Aston Martin</span><span class="driver-actions"><button class="change-team-btn" data-driver-code="STR">🔄</button></span></div>
+                <div class="driver" draggable="true" data-driver="HUL"><span class="driver-code">HUL</span> <span class="team-name">Kick Sauber</span><span class="driver-actions"><button class="change-team-btn" data-driver-code="HUL">🔄</button></span></div>
+                <div class="driver" draggable="true" data-driver="BOR"><span class="driver-code">BOR</span> <span class="team-name">Kick Sauber</span><span class="driver-actions"><button class="change-team-btn" data-driver-code="BOR">🔄</button></span></div>
+                <div class="driver" draggable="true" data-driver="LAW"><span class="driver-code">LAW</span> <span class="team-name">Racing Bulls</span><span class="driver-actions"><button class="change-team-btn" data-driver-code="LAW">🔄</button></span></div>
+                <div class="driver" draggable="true" data-driver="HAD"><span class="driver-code">HAD</span> <span class="team-name">Racing Bulls</span><span class="driver-actions"><button class="change-team-btn" data-driver-code="HAD">🔄</button></span></div>
+                <div class="driver" draggable="true" data-driver="OCO"><span class="driver-code">OCO</span> <span class="team-name">Haas</span><span class="driver-actions"><button class="change-team-btn" data-driver-code="OCO">🔄</button></span></div>
+                <div class="driver" draggable="true" data-driver="BEA"><span class="driver-code">BEA</span> <span class="team-name">Haas</span><span class="driver-actions"><button class="change-team-btn" data-driver-code="BEA">🔄</button></span></div>
+                <div class="driver" draggable="true" data-driver="GAS"><span class="driver-code">GAS</span> <span class="team-name">Alpine</span><span class="driver-actions"><button class="change-team-btn" data-driver-code="GAS">🔄</button></span></div>
+                <div class="driver" draggable="true" data-driver="COL"><span class="driver-code">COL</span> <span class="team-name">Alpine</span><span class="driver-actions"><button class="change-team-btn" data-driver-code="COL">🔄</button></span></div>
+            </div>
+        </div> 
+        
+        <div class="races-container">
+            <div class="race-grid" id="race-01" data-race-name="Avustralya">
+                <h3 class="toggle-header">1. Avustralya GP</h3>
+                <div class="race-grid-content">
+                    <div class="drop-zone pole-zone" data-position="pole"><span class="position-label">POLE</span><span class="driver-name"></span><span class="delete-btn">×</span></div>
+                    <div class="drop-zone" data-position="1"><span class="position-label">P1 (W)</span><span class="driver-name"></span><span class="delete-btn">×</span></div>
+                    <div class="drop-zone" data-position="2"><span class="position-label">P2</span><span class="driver-name"></span><span class="delete-btn">×</span></div>
+                    <div class="drop-zone" data-position="3"><span class="position-label">P3</span><span class="driver-name"></span><span class="delete-btn">×</span></div>
+                    <div class="drop-zone" data-position="4"><span class="position-label">P4</span><span class="driver-name"></span><span class="delete-btn">×</span></div>
+                    <div class="drop-zone" data-position="5"><span class="position-label">P5</span><span class="driver-name"></span><span class="delete-btn">×</span></div>
+                    <div class="drop-zone" data-position="6"><span class="position-label">P6</span><span class="driver-name"></span><span class="delete-btn">×</span></div>
+                    <div class="drop-zone" data-position="7"><span class="position-label">P7</span><span class="driver-name"></span><span class="delete-btn">×</span></div>
+                    <div class="drop-zone" data-position="8"><span class="position-label">P8</span><span class="driver-name"></span><span class="delete-btn">×</span></div>
+                    <div class="drop-zone" data-position="9"><span class="position-label">P9</span><span class="driver-name"></span><span class="delete-btn">×</span></div>
+                    <div class="drop-zone" data-position="10"><span class="position-label">P10</span><span class="driver-name"></span><span class="delete-btn">×</span></div>
+                </div>
+            </div>
+        </div> 
+
+        <div class="sidebar-right">
+            <div id="results-container">
+                <div class="tabs">
+                    <div class="tab-button active" data-tab="standings">Puan Durumu</div>
+                    <div class="tab-button" data-tab="all-time">Tüm Zamanlar İstatistikleri</div>
+                    <div class="tab-button" data-tab="past-seasons">Geçmiş Tahminler</div>
+                </div>
+                <div class="tab-content">
+                    <div class="tab-pane active" id="standings">
+                        <button id="calculate-btn">Şampiyonayı Hesapla</button>
+                        <button id="reset-btn">Mevcut Sezonu Sıfırla</button>
+                        <button id="end-season-btn">Sezonu Bitir ve Sonraki Sezona Geç (2026)</button>
+                        <hr style="border: 0; border-top: 1px solid #ff006f; margin: 15px 0;">
+                        <h4>Sürücüler Puan Durumu (Puan | W | P)</h4>
+                        <ul id="results-list-driver"></ul>
+                        <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+                        <h4>Takımlar Puan Durumu (Puan | W)</h4>
+                        <ul id="results-list-constructor"></ul>
+                    </div>
+                    <div class="tab-pane" id="all-time"><div id="all-time-stats"></div></div>
+                    <div class="tab-pane" id="past-seasons"><div id="past-seasons-content"></div></div>
+                </div>
+            </div>
+        </div> 
+    </div> 
+    
+    <script>
+        // --- 1. VERİ YAPILARI ---
+
+        const currentSeasonYear = { value: 2025 };
+        const pointsSystem = { 1: 25, 2: 18, 3: 15, 4: 12, 5: 10, 6: 8, 7: 6, 8: 4, 9: 2, 10: 1 };
+        
+        // Takım verileri (mutable - değiştirilebilir)
+        let teamData = {
+            "VER": { team: "Red Bull", color: "var(--color-rb)" }, "TSU": { team: "Red Bull", color: "var(--color-rb)" },
+            "NOR": { team: "McLaren", color: "var(--color-mclaren)" }, "PIA": { team: "McLaren", color: "var(--color-mclaren)" },
+            "LEC": { team: "Ferrari", color: "var(--color-ferrari)" }, "HAM": { team: "Ferrari", color: "var(--color-ferrari)" },
+            "RUS": { team: "Mercedes", color: "var(--color-mercedes)" }, "ANT": { team: "Mercedes", color: "var(--color-mercedes)" },
+            "SAI": { team: "Williams", color: "var(--color-williams)" }, "ALB": { team: "Williams", color: "var(--color-williams)" },
+            "ALO": { team: "Aston Martin", color: "var(--color-aston)" }, "STR": { team: "Aston Martin", color: "var(--color-aston)" },
+            "HUL": { team: "Kick Sauber", color: "var(--color-sauber)" }, "BOR": { team: "Kick Sauber", color: "var(--color-sauber)" },
+            "LAW": { team: "Racing Bulls", color: "var(--color-rbulls)" }, "HAD": { team: "Racing Bulls", color: "var(--color-rbulls)" },
+            "OCO": { team: "Haas", color: "var(--color-haas)" }, "BEA": { team: "Haas", color: "var(--color-haas)" },
+            "GAS": { team: "Alpine", color: "var(--color-alpine)" }, "COL": { team: "Alpine", color: "var(--color-alpine)" }
+        };
+        
+        const allTeams = ["Red Bull", "McLaren", "Ferrari", "Mercedes", "Williams", "Aston Martin", "Kick Sauber", "Racing Bulls", "Haas", "Alpine"];
+        const teamColors = { /* Renk eşleşmesi */
+            "Red Bull": "var(--color-rb)", "McLaren": "var(--color-mclaren)", "Ferrari": "var(--color-ferrari)", 
+            "Mercedes": "var(--color-mercedes)", "Williams": "var(--color-williams)", "Aston Martin": "var(--color-aston)", 
+            "Kick Sauber": "var(--color-sauber)", "Racing Bulls": "var(--color-rbulls)", "Haas": "var(--color-haas)", 
+            "Alpine": "var(--color-alpine)"
+        };
+        
+        const raceNames = [ /* Yarış isimleri - 25 yarış */
+            "Avustralya", "Çin", "Japonya", "Bahreyn", "S. Arabistan", "Miami", "Imola", "Monako", "İspanya", "Kanada", 
+            "Avusturya", "Britanya", "Belçika", "Macaristan", "Hollanda", "Monza", "Azerbaycan", "Singapur", "ABD (Austin)", 
+            "Meksika", "Brezilya", "Las Vegas", "Katar", "Abu Dabi", "Yeni Yarış" 
+        ];
+        
+        // Tüm Zamanlar İstatistikleri için başlangıç değerleri
+        const initialAllTimeStats = {
+            wins: { "HAM": 105, "SCH": 91, "VER": 63, "VET": 53, "PRO": 51, "SEN": 41, "ALO": 32, "NOR": 4, "PIA": 2, "LEC": 8, "RUS": 3, "SAI": 4, "GAS": 1, "OCO": 1 },
+            poles: { "HAM": 104, "SCH": 68, "SEN": 65, "VET": 57, "VER": 40, "LEC": 26, "ALO": 22, "NOR": 9, "RUS": 5, "SAI": 6, "PIA": 0, "STR": 1 }
+        };
+        
+        let pastSeasons = []; // Kaydedilen sezonlar
+
+        // --- 2. HTML ELEMANLARINI SEÇME ---
+        
+        const driverElements = document.querySelectorAll('.driver');
+        const driverBank = document.getElementById('driver-bank'); 
+        const driverResultsList = document.getElementById('results-list-driver');
+        const constructorResultsList = document.getElementById('results-list-constructor');
+        const racesContainer = document.querySelector('.races-container');
+        const allTimeStatsDiv = document.getElementById('all-time-stats');
+        const pastSeasonsContent = document.getElementById('past-seasons-content');
+        const currentSeasonTitle = document.getElementById('current-season-title');
+        
+        let draggedDriverCode = null; 
+
+        // --- 3. BAŞLANGIÇ VE YAPI OLUŞTURMA FONKSİYONLARI ---
+        
+        function createRaceGrids() {
+            // İlk yarış gridini kopyala
+            const existingGrid = document.getElementById('race-01');
+            const baseContentHTML = existingGrid.querySelector('.race-grid-content').innerHTML;
+            
+            // Mevcut olanları sil (eğer varsa)
+            document.querySelectorAll('.race-grid:not(#race-01)').forEach(el => el.remove());
+
+            // 25 yarış için grid oluştur
+            for (let i = 2; i <= raceNames.length; i++) {
+                const raceName = raceNames[i - 1];
+                const newGrid = document.createElement('div');
+                newGrid.classList.add('race-grid');
+                newGrid.id = `race-${String(i).padStart(2, '0')}`;
+                newGrid.dataset.raceName = raceName;
+                
+                newGrid.innerHTML = `
+                    <h3 class="toggle-header">${i}. ${raceName} GP</h3> 
+                    <div class="race-grid-content">${baseContentHTML}</div>
+                `;
+                racesContainer.appendChild(newGrid);
+            }
+        }
+
+        // Sürücü listesini renklendirir
+        function initializeDriverBank() {
+            driverElements.forEach(driverElement => {
+                const driverCode = driverElement.dataset.driver;
+                if (teamData[driverCode]) { 
+                    const teamColor = teamData[driverCode].color;
+                    driverElement.style.borderLeftColor = teamColor; // Renkleri uygula
+                    driverElement.querySelector('.team-name').textContent = teamData[driverCode].team;
+                }
+            });
+        }
+        
+        // Sekmeleri ayarlar
+        function setupTabs() {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabPanes = document.querySelectorAll('.tab-pane');
+            
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const tabId = button.dataset.tab;
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    tabPanes.forEach(pane => pane.classList.remove('active'));
+                    button.classList.add('active');
+                    document.getElementById(tabId).classList.add('active');
+                    // Gerekli hesaplamaları tetikle
+                    if (tabId === 'standings') { calculateChampionship(false); }
+                    if (tabId === 'all-time') { calculateChampionship(false); } 
+                    if (tabId === 'past-seasons') { renderPastSeasons(); }
+                });
+            });
+        }
+        
+        // DropZone temizleme işlevi
+        function clearDropZone(dropZone) {
+            const driverNameSpan = dropZone.querySelector('.driver-name');
+            driverNameSpan.innerText = '';
+            driverNameSpan.style.color = '';
+            delete dropZone.dataset.assignedDriver;
+            dropZone.classList.remove('filled');
+        }
+
+        // --- 4. EK İŞLEVLER (Takım Değiştirme, Sezon Yönetimi) ---
+        
+        function createTeamSelect(driverCode) {
+            let select = document.createElement('select');
+            allTeams.forEach(team => {
+                let option = document.createElement('option');
+                option.value = team;
+                option.textContent = team;
+                if (team === teamData[driverCode]?.team) { option.selected = true; }
+                select.appendChild(option);
+            });
+            return select;
+        }
+
+        function handleChangeTeam(driverCode, newTeam) {
+            teamData[driverCode].team = newTeam;
+            teamData[driverCode].color = teamColors[newTeam] || "var(--color-haas)";
+            
+            initializeDriverBank(); // Sürücü listesini güncelle
+            calculateChampionship(); // Puan durumunu yeniden hesapla
+            
+            // Atanmış drozone'ları güncelle
+             document.querySelectorAll(`.drop-zone[data-assigned-driver="${driverCode}"] .driver-name`).forEach(span => {
+                span.style.color = teamData[driverCode].color;
+            });
+
+            alert(`${driverCode} artık ${newTeam} takımı için yarışacak!`);
+        }
+
+        function handleGlobalReset() {
+            if (!confirm(`Tüm ${currentSeasonYear.value} tahminlerini sıfırlamak istediğinizden emin misiniz?`)) return;
+            document.querySelectorAll('.drop-zone').forEach(clearDropZone);
+            driverResultsList.innerHTML = '';
+            constructorResultsList.innerHTML = '';
+            updateAllTimeStats({}, {});
+        }
+        
+        function handleEndSeason() {
+            if (!confirm(`Mevcut ${currentSeasonYear.value} sezonunu bitirip sonuçları kaydetmek ve ${currentSeasonYear.value + 1} sezonuna geçmek istediğinizden emin misiniz?`)) return;
+
+            const { driverStandings, constructorStandings, currentWins, currentPoles } = calculateChampionship(true);
+
+            // Tüm zamanlar istatistiklerini *kalıcı olarak* güncelle
+            Object.keys(currentWins).forEach(driver => {
+                initialAllTimeStats.wins[driver] = (initialAllTimeStats.wins[driver] || 0) + currentWins[driver];
+                initialAllTimeStats.poles[driver] = (initialAllTimeStats.poles[driver] || 0) + currentPoles[driver];
+            });
+
+            pastSeasons.unshift({ year: currentSeasonYear.value, drivers: driverStandings, constructors: constructorStandings });
+            
+            currentSeasonYear.value++;
+            
+            currentSeasonTitle.textContent = `F1 ${currentSeasonYear.value} Şampiyona Tahmin Aracı`;
+            document.getElementById('end-season-btn').textContent = `Sezonu Bitir (${currentSeasonYear.value + 1})`;
+            
+            // Mevcut sezonu sıfırla
+            document.querySelectorAll('.drop-zone').forEach(clearDropZone);
+            driverResultsList.innerHTML = '';
+            constructorResultsList.innerHTML = '';
+            updateAllTimeStats({}, {}); 
+            
+            alert(`${currentSeasonYear.value - 1} Sezonu Kaydedildi. Artık ${currentSeasonYear.value} sezonu için tahmin yapabilirsiniz!`);
+        }
+
+
+        // --- 5. HESAPLAMA VE GÜNCELLEME ---
+
+        function calculateChampionship(returnOnly = false) {
+            let driverStandings = {}; // Sürücü puanları
+            let currentWins = {};     // Sürücü galibiyetleri
+            let currentPoles = {};    // Sürücü pole pozisyonları
+
+            // Tüm sürücüleri sıfırla
+            Object.keys(teamData).forEach(driver => { 
+                driverStandings[driver] = 0; currentWins[driver] = 0; currentPoles[driver] = 0;
+            });
+            
+            // Takım puanlarını sıfırla
+            const uniqueTeams = {}; 
+            allTeams.forEach(team => {
+                const teamDriver = Object.keys(teamData).find(d => teamData[d].team === team);
+                uniqueTeams[team] = { points: 0, wins: 0, color: teamDriver ? teamData[teamDriver].color : teamColors[team] };
+            });
+
+            const allDropZones = document.querySelectorAll('.race-grid-content .drop-zone');
+            
+            // Puanları topla
+            allDropZones.forEach(zone => {
+                const driverName = zone.dataset.assignedDriver;
+                const position = zone.dataset.position;
+
+                if (driverName && teamData[driverName]) {
+                    
+                    if (position === '1') { currentWins[driverName]++; } 
+                    // Pole Pozisyonu puan vermese de, istatistik için sayılır
+                    else if (position === 'pole') { currentPoles[driverName]++; }
+                    
+                    const points = pointsSystem[parseInt(position)] || 0;
+                    
+                    if (points > 0) { driverStandings[driverName] += points; }
+                }
+            });
+            
+            // Takım puanlarını hesapla
+            Object.keys(driverStandings).forEach(driver => {
+                if (teamData[driver]) { 
+                    const team = teamData[driver].team;
+                    if(uniqueTeams[team]){ 
+                        uniqueTeams[team].points += driverStandings[driver];
+                        uniqueTeams[team].wins += currentWins[driver];
+                    }
+                }
+            });
+
+            // Sürücüleri sırala (puan, galibiyet ve pole'ü topla)
+            const sortedDrivers = Object.keys(driverStandings).map(driver => ({
+                driver: driver, points: driverStandings[driver], wins: currentWins[driver], poles: currentPoles[driver]
+            })).sort((a, b) => b.points - a.points);
+            
+            // Takımları sırala
+            const sortedConstructors = Object.keys(uniqueTeams).map(team => ({
+                team: team, points: uniqueTeams[team].points, wins: uniqueTeams[team].wins
+            })).sort((a, b) => b.points - a.points);
+
+            if (returnOnly) {
+                return { driverStandings: sortedDrivers, constructorStandings: sortedConstructors, currentWins, currentPoles };
+            }
+
+            // Görünümü Güncelle (UI)
+            driverResultsList.innerHTML = '';
+            sortedDrivers.forEach(d => {
+                 if (teamData[d.driver]) { 
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span style="font-weight: bold; color: ${teamData[d.driver].color};">${d.driver}</span>
+                        <span style="font-weight: bold;">${d.points}</span>
+                        <span style="font-weight: bold;">${d.wins}</span>
+                        <span style="font-weight: bold;">${d.poles}</span>
+                        <span style="color: #555; font-size: 0.9em;">${teamData[d.driver].team}</span>
+                    `;
+                    driverResultsList.appendChild(li);
+                }
+            });
+            
+            constructorResultsList.innerHTML = '';
+            sortedConstructors.forEach(c => {
+                 if(uniqueTeams[c.team]){ 
+                    const teamColor = uniqueTeams[c.team].color;
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span class="team-result-name">
+                            <span class="team-color-swatch" style="background-color: ${teamColor};"></span>
+                            ${c.team}
+                        </span>
+                        <span>${c.points} Puan</span>
+                        <span style="font-weight: bold;">${c.wins} W</span>
+                    `;
+                    constructorResultsList.appendChild(li);
+                }
+            });
+            
+            updateAllTimeStats(currentWins, currentPoles);
+        }
+
+        // Tüm Zamanlar İstatistiklerini oluşturur
+        function updateAllTimeStats(currentWins, currentPoles) {
+            // Başlangıç istatistiklerini mevcut sezon verileriyle birleştir
+            const mergedWins = { ...initialAllTimeStats.wins }; 
+            const mergedPoles = { ...initialAllTimeStats.poles }; 
+
+            Object.keys(currentWins).forEach(driver => {
+                mergedWins[driver] = (mergedWins[driver] || 0) + currentWins[driver];
+                mergedPoles[driver] = (mergedPoles[driver] || 0) + currentPoles[driver];
+            });
+
+            // Galibiyetler Tablosu
+            const sortedWins = Object.entries(mergedWins).sort(([,a],[,b]) => b - a).slice(0, 15);
+            let winsTable = '<h4>🏆 Tüm Zamanlar Yarış Galibiyetleri</h4><table><tr><th>Sıra</th><th>Pilot</th><th>Galibiyet Sayısı</th></tr>';
+            sortedWins.forEach(([driver, count], index) => {
+                const driverData = teamData[driver]; 
+                const colorStyle = driverData ? `style="color: ${driverData.color}; font-weight: bold;"` : '';
+                winsTable += `<tr><td>${index + 1}.</td><td ${colorStyle}>${driver}</td><td>${count}</td></tr>`;
+            });
+            winsTable += '</table>';
+            
+            // Pole Pozisyonları Tablosu
+            const sortedPoles = Object.entries(mergedPoles).sort(([,a],[,b]) => b - a).slice(0, 15);
+            let polesTable = '<h4>⏱️ Tüm Zamanlar Pole Pozisyonları</h4><table><tr><th>Sıra</th><th>Pilot</th><th>Pole Sayısı</th></tr>';
+            sortedPoles.forEach(([driver, count], index) => {
+                const driverData = teamData[driver];
+                const colorStyle = driverData ? `style="color: ${driverData.color}; font-weight: bold;"` : '';
+                polesTable += `<tr><td>${index + 1}.</td><td ${colorStyle}>${driver}</td><td>${count}</td></tr>`;
+            });
+            polesTable += '</table>';
+            
+            allTimeStatsDiv.innerHTML = winsTable + polesTable;
+        }
+        
+        // Geçmiş tahminleri gösterir
+        function renderPastSeasons() {
+            pastSeasonsContent.innerHTML = '';
+            if (pastSeasons.length === 0) {
+                pastSeasonsContent.innerHTML = '<p>Henüz kaydedilmiş geçmiş sezon tahmini bulunmamaktadır.</p>';
+                return;
+            }
+
+            pastSeasons.forEach(season => {
+                let seasonDiv = document.createElement('div');
+                seasonDiv.innerHTML = `<h5>🏆 ${season.year} Sezonu Tahmin Sonuçları</h5>`;
+                
+                // Sürücüler
+                let driverList = '<p style="font-weight: bold; margin-top: 10px;">Sürücüler (Puan | W | P)</p><ul style="font-size:12px;">';
+                season.drivers.forEach(d => {
+                     const driverColor = teamData[d.driver]?.color || '#000'; 
+                     driverList += `<li style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dotted #ddd;">
+                                        <span style="color: ${driverColor}; font-weight: bold;">${d.driver}</span>
+                                        <span>${d.points} | W:${d.wins} | P:${d.poles}</span>
+                                    </li>`;
+                });
+                driverList += '</ul>';
+                
+                // Takımlar
+                let constructorList = '<p style="font-weight: bold; margin-top: 10px;">Takımlar (Puan | W)</p><ul style="font-size:12px;">';
+                season.constructors.forEach(c => {
+                    const teamColor = teamColors[c.team] || '#000'; 
+                    constructorList += `<li style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dotted #ddd;">
+                                            <span class="team-result-name">
+                                                <span class="team-color-swatch" style="background-color: ${teamColor};"></span>
+                                                ${c.team}
+                                            </span>
+                                            <span>${c.points} | W:${c.wins}</span>
+                                        </li>`;
+                });
+                constructorList += '</ul><hr style="border: 0; border-top: 1px dashed #ccc; margin: 15px 0;">';
+                
+                seasonDiv.innerHTML += driverList + constructorList;
+                pastSeasonsContent.appendChild(seasonDiv);
+            });
+        }
+
+
+        // --- 6. OLAY YÖNETİCİLERİ ---
+
+        function handleDragStart(e) {
+            if (e.target.classList.contains('driver')) {
+                draggedDriverCode = e.target.dataset.driver; 
+                e.dataTransfer.setData("text/plain", draggedDriverCode);
+                e.dataTransfer.effectAllowed = "move";
+                setTimeout(() => { e.target.style.opacity = '0.5'; }, 0);
+            } else {
+                e.preventDefault();
+            }
+        }
+
+        function handleDragEnd(e) {
+            if (e.target.classList.contains('driver')) {
+                e.target.style.opacity = '1'; 
+            }
+            draggedDriverCode = null; 
+        }
+
+        function handleDragOver(e) { 
+            e.preventDefault(); 
+            e.dataTransfer.dropEffect = "move"; 
+        }
+        
+        function handleDragEnter(e) {
+            e.preventDefault(); 
+            const dropZone = e.target.closest('.drop-zone');
+            if (dropZone) {
+                dropZone.classList.add('drag-over');
+            }
+        }
+
+        function handleDragLeave(e) {
+            const dropZone = e.target.closest('.drop-zone');
+             if (dropZone && !dropZone.contains(e.relatedTarget)) { 
+                 dropZone.classList.remove('drag-over');
+            }
+        }
+
+        // KESİNLEŞTİRİLMİŞ handleDrop: Pole ve P1-P10 birbirinden bağımsızdır, ancak kendi içlerinde tektir.
+        function handleDrop(e) {
+            e.preventDefault();
+            const dropZone = e.target.closest('.drop-zone'); 
+            if (!dropZone) return;
+
+            dropZone.classList.remove('drag-over');
+            
+            const driverCode = e.dataTransfer.getData("text/plain"); 
+            if (!driverCode || !teamData[driverCode]) { return; }
+
+            const raceGrid = dropZone.closest('.race-grid');
+            const targetPosition = dropZone.dataset.position;
+            
+            const isResultZone = targetPosition !== 'pole';
+            const originalOccupant = dropZone.dataset.assignedDriver;
+
+            // --- A. DRAG EDİLEN SÜRÜCÜNÜN ESKİ YERİNİ BUL (TÜM SLOTLARDA) ---
+            let zoneToClear = null;
+            raceGrid.querySelectorAll('.drop-zone').forEach(zone => {
+                if (zone.dataset.assignedDriver === driverCode && zone !== dropZone) {
+                    zoneToClear = zone;
+                }
+            });
+
+            // --- B. P1-P10 BENZERSİZLİK KONTROLÜ (Sadece P1-P10 Hedefleniyorsa) ---
+            if (isResultZone) {
+                let foundConflict = false;
+                
+                // Tüm P1-P10 slotlarını tara. Hedef ve Taşıma kaynağı hariç başka bir yerde aynı sürücü varsa ÇAKIŞMA var demektir (Bank'tan Çift Atama).
+                raceGrid.querySelectorAll('.drop-zone:not(.pole-zone)').forEach(zone => {
+                    if (zone.dataset.assignedDriver === driverCode && zone !== dropZone && zone !== zoneToClear) {
+                        foundConflict = true;
+                        const existingPositionLabel = zone.querySelector('.position-label').innerText;
+                        alert(`${raceGrid.dataset.raceName} yarışında ${driverCode} zaten ${existingPositionLabel} pozisyonuna atanmış. P1-P10 arasında yalnızca tek bir sonuç pozisyonunda bulunabilir!`);
+                    }
+                });
+                if (foundConflict) return;
+            }
+
+            // --- C. ATAMA ---
+            const driverNameSpan = dropZone.querySelector('.driver-name');
+            driverNameSpan.innerText = driverCode;
+            driverNameSpan.style.color = teamData[driverCode].color; 
+            dropZone.dataset.assignedDriver = driverCode;
+            dropZone.classList.add('filled');
+
+            // --- D. ESKİ YERİ YÖNETME (SWAP/MOVE/KOPYALA) ---
+            if (zoneToClear) {
+                const zoneToClearPosition = zoneToClear.dataset.position;
+
+                // Eğer taşıma Pole/P-Slot sınırını aşıyorsa (Pole <-> P1-P10), SADECE KOPYALA (zoneToClear'ı temizleme/takas etme)
+                const isCrossBoundaryMove = (zoneToClearPosition === 'pole' && isResultZone) || 
+                                            (zoneToClearPosition !== 'pole' && !isResultZone);
+                
+                if (isCrossBoundaryMove) {
+                     // KOPYALA: Hiçbir şey yapma, eski pozisyon (Pole veya P1-P10) kalmaya devam eder.
+                     
+                } else {
+                     // Aynı Grup İçinde Taşıma/Swap (P-Slot <-> P-Slot VEYA Pole <-> Pole)
+                     if (originalOccupant) {
+                        // Swap: Hedefin önceki sürücüsünü eski slota geri koy
+                        const existingNameSpan = zoneToClear.querySelector('.driver-name');
+                        existingNameSpan.innerText = originalOccupant;
+                        existingNameSpan.style.color = teamData[originalOccupant].color;
+                        zoneToClear.dataset.assignedDriver = originalOccupant;
+                        zoneToClear.classList.add('filled'); 
+
+                    } else {
+                        // Move: Eski slotu temizle
+                        clearDropZone(zoneToClear);
+                    }
+                }
+            }
+            
+            // İşlem bittiğinde puanları yeniden hesapla
+            calculateChampionship(false); 
+        }
+        
+        function handleClearButtonClick(e) {
+            if (e.target.classList.contains('delete-btn')) {
+                const dropZoneToClear = e.target.closest('.drop-zone');
+                if (dropZoneToClear) {
+                    clearDropZone(dropZoneToClear);
+                }
+                // Silme işlemi sonrası puan durumunu güncelle
+                calculateChampionship(false);
+            }
+        }
+        
+        // Takım Değiştirme Butonu Dinleyicisi
+        driverBank.addEventListener('click', function(e) {
+            if (e.target.classList.contains('change-team-btn')) {
+                const existingDialog = document.querySelector('dialog');
+                if(existingDialog) existingDialog.remove();
+                
+                const driverCode = e.target.dataset.driverCode;
+                const currentTeam = teamData[driverCode]?.team || 'Bilinmiyor';
+                const teamSelect = createTeamSelect(driverCode);
+                
+                const formDiv = document.createElement('div');
+                formDiv.style.marginTop = '10px';
+                formDiv.innerHTML = `<p style="margin-bottom: 5px;">**${driverCode}** için yeni takım seç (Mevcut: ${currentTeam}):</p>`;
+                formDiv.appendChild(teamSelect);
+
+                const confirmBtn = document.createElement('button');
+                confirmBtn.textContent = 'Kaydet'; 
+                confirmBtn.style.marginTop = '10px';
+                confirmBtn.style.backgroundColor = 'var(--color-aston)';
+                confirmBtn.onclick = () => {
+                    const newTeam = teamSelect.value;
+                    handleChangeTeam(driverCode, newTeam);
+                    dialog.close(); 
+                };
+
+                const closeBtn = document.createElement('button');
+                closeBtn.textContent = 'İptal'; 
+                closeBtn.style.marginTop = '5px';
+                closeBtn.style.backgroundColor = '#ccc';
+                closeBtn.style.color = '#000';
+                closeBtn.onclick = () => dialog.close(); 
+
+                formDiv.appendChild(confirmBtn);
+                formDiv.appendChild(closeBtn);
+
+                const dialog = document.createElement('dialog');
+                dialog.appendChild(formDiv);
+                document.body.appendChild(dialog);
+                dialog.addEventListener('close', () => dialog.remove()); 
+                dialog.showModal();
+            }
+        });
+        
+        // Accordion için Olay Dinleyicisi
+        racesContainer.addEventListener('click', function(e) {
+            const header = e.target.closest('.toggle-header');
+            if (header) {
+                header.closest('.race-grid').classList.toggle('open');
+            }
+        });
+
+
+        // --- 7. BAŞLANGIÇ ÇALIŞTIRMA ---
+        
+        function init() {
+            createRaceGrids(); 
+            initializeDriverBank();
+            setupTabs();
+            updateAllTimeStats({}, {});
+            
+            // Sürükleme olayları
+            driverBank.addEventListener('dragstart', handleDragStart);
+            driverBank.addEventListener('dragend', handleDragEnd);
+
+            // Bırakma ve Silme olayları
+            racesContainer.addEventListener('dragover', handleDragOver);
+            racesContainer.addEventListener('dragenter', handleDragEnter);
+            racesContainer.addEventListener('dragleave', handleDragLeave);
+            racesContainer.addEventListener('drop', handleDrop);
+            racesContainer.addEventListener('click', handleClearButtonClick); 
+            
+            // Buton olayları
+            document.getElementById('calculate-btn').addEventListener('click', () => calculateChampionship(false));
+            document.getElementById('reset-btn').addEventListener('click', handleGlobalReset);
+            document.getElementById('end-season-btn').addEventListener('click', handleEndSeason);
+        }
+
+        // DOM tamamen yüklendiğinde başlat
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+
+</body>
+</html>
